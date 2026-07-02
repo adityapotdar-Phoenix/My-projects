@@ -1,0 +1,331 @@
+
+# Retail Sales Analytics with SQL
+
+## Project Overview
+
+This project is a SQL-based sales analytics case study using a simple **star schema** with one fact table (`sales`) and four dimension tables (`customers`, `products`, `stores`, `calendar`).  
+The goal is to mimic a real-world retail business and use SQL to clean data and answer key business questions like **top products**, **customer spending**, and the **impact of discounts on quantity sold**.
+
+## Dataset and Schema
+
+The data is **dummy/synthetic**, created to resemble a multi-store retail business.  
+It follows a standard **sales star schema** similar to many data warehousing assignments and portfolio projects.
+### Tables
+
+- `customers`  
+  - `customer_id` (PK)  
+  - `name`  
+  - `city`  
+  - `join_date`  
+  - `segment` (e.g., Retail, Corporate, Home Office)
+
+- `products`  
+  - `product_id` (PK)  
+  - `category` (Electronics, Furniture, Grocery, Clothing)  
+  - `subcategory` (e.g., Mobiles, Laptops, Snacks, Men, Women)  
+  - `product_name`  
+  - `unit_price`
+
+- `stores`  
+  - `store_id` (PK)  
+  - `city`  
+  - `region` (North, South, West, etc.)
+
+- `calendar`  
+  - `date` (PK)  
+  - `month`  
+  - `quarter`  
+  - `year`  
+  - `is_weekend` (1 = Saturday/Sunday, 0 = weekday)
+
+- `sales` (fact table)  
+  - `sale_id` (PK)  
+  - `date` (FK → `calendar.date`)  
+  - `store_id` (FK → `stores.store_id`)  
+  - `customer_id` (FK → `customers.customer_id`)  
+  - `product_id` (FK → `products.product_id`)  
+  - `quantity`  
+  - `discount` (0 to 0.30, representing 0%–30%)  
+  - `payment_method` (Cash, Credit Card, UPI, Net Banking)
+
+This schema is typical for sales analytics and allows aggregations by customer, product, store, and time.
+---
+
+## Project Objectives
+
+The main objectives of this project are:
+
+1. **Design a simple star schema** for a retail sales use case.  
+2. **Generate synthetic data** for:
+   - 250 customers  
+   - ~36 products across 4 categories  
+   - 10 stores in multiple cities/regions  
+   - Calendar dates for all of 2024  
+   - ~5000 sales transactions
+3. **Clean and validate the data** using SQL.  
+4. **Answer key business questions**, including:
+   - Top 10 products by revenue and quantity sold.  
+   - Average order value (AOV) per customer.  
+   - Effect of discount levels on quantity sold.
+
+This structure is inspired by common SQL/data analysis portfolio projects that focus on sales performance and customer behaviour.
+
+---
+```
+
+- `data/` – Contains CSV files with synthetic data (optional if you prefer only SQL inserts).  
+- `sql/01_create_tables.sql` – DDL statements to create all tables.  
+- `sql/02_seed_data.sql` – `INSERT` statements or `COPY/LOAD DATA` commands to populate tables.  
+- `sql/03_data_cleaning.sql` – SQL scripts for data cleaning and validation.  
+- `sql/04_analysis_queries.sql` – SQL queries for analysis and insights.
+
+This layout follows common patterns for SQL portfolio repositories on GitHub.[web:27][web:29][web:31][web:32]
+
+---
+
+## How the Data Was Generated
+
+The dataset is **synthetic**, generated programmatically (or via spreadsheet logic) rather than taken from a real company.[web:19][web:22][web:24][web:25]
+
+Key assumptions:
+
+- **Customers**
+  - 250 customers named `Customer_001` to `Customer_250`.  
+  - Cities sampled from: Mumbai, Pune, Delhi, Bengaluru, Chennai, Hyderabad, Kolkata.  
+  - `join_date` randomly assigned between `2023-01-01` and `2025-12-31`.  
+  - Segments: Retail, Corporate, Home Office.
+
+- **Products**
+  - ~36 products across 4 categories: Electronics, Furniture, Grocery, Clothing.  
+  - Each category has 3 subcategories with 3 products each (e.g., `Mobiles Product 1`, `Mobiles Product 2`, etc.).  
+  - `unit_price` ranges:
+    - Electronics: 5,000–60,000  
+    - Furniture: 2,000–20,000  
+    - Grocery: 50–1,000  
+    - Clothing: 300–5,000
+
+- **Stores**
+  - 10 stores across major Indian cities with regions like North, South, West.
+
+- **Calendar**
+  - All dates for 2024 (2024‑01‑01 to 2024‑12‑31).  
+  - `month`, `quarter`, `year` derived from the date.  
+  - `is_weekend` = 1 if Saturday/Sunday, else 0.
+
+- **Sales**
+  - ~5000 rows of transactions.  
+  - Each row randomly picks a valid date, store, customer, and product.  
+  - `quantity` ranges from 1 to 5 units.  
+  - `discount` takes one of {0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30}.  
+  - `payment_method` chosen from Cash, Credit Card, UPI, Net Banking.
+
+These patterns are similar to many educational examples that generate fake sales data for practice.[web:16][web:19][web:22][web:24][web:25]
+
+---
+
+## SQL: Creating the Schema
+
+All table definitions are stored in `sql/01_create_tables.sql`.
+
+Example (simplified):
+
+```sql
+CREATE TABLE customers (
+    customer_id   INT PRIMARY KEY,
+    name          VARCHAR(100),
+    city          VARCHAR(100),
+    join_date     DATE,
+    segment       VARCHAR(50)
+);
+
+CREATE TABLE products (
+    product_id    INT PRIMARY KEY,
+    category      VARCHAR(50),
+    subcategory   VARCHAR(50),
+    product_name  VARCHAR(100),
+    unit_price    NUMERIC(10,2)
+);
+
+CREATE TABLE stores (
+    store_id  INT PRIMARY KEY,
+    city      VARCHAR(100),
+    region    VARCHAR(50)
+);
+
+CREATE TABLE calendar (
+    date        DATE PRIMARY KEY,
+    month       INT,
+    quarter     INT,
+    year        INT,
+    is_weekend  SMALLINT
+);
+
+CREATE TABLE sales (
+    sale_id        INT PRIMARY KEY,
+    date           DATE,
+    store_id       INT,
+    customer_id    INT,
+    product_id     INT,
+    quantity       INT,
+    discount       NUMERIC(4,2),
+    payment_method VARCHAR(50),
+    FOREIGN KEY (date)        REFERENCES calendar(date),
+    FOREIGN KEY (store_id)    REFERENCES stores(store_id),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+    FOREIGN KEY (product_id)  REFERENCES products(product_id)
+);
+```
+
+---
+
+## SQL: Data Cleaning
+  
+The main goals are to **standardize text**, **fix prices**, **ensure referential integrity**, and **validate discount ranges**, following common cleaning patterns in SQL projects.
+
+```sql
+-- 1. Standardize customer names and city casing
+UPDATE customers
+SET name = INITCAP(TRIM(name)),
+    city = INITCAP(TRIM(city));
+
+-- 2. Remove customers with NULL key fields
+DELETE FROM customers
+WHERE name IS NULL
+   OR city IS NULL;
+
+-- 3. Fix invalid product prices (null or <= 0)
+WITH median_price AS (
+    SELECT category,
+           PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY unit_price) AS med_price
+    FROM products
+    GROUP BY category
+)
+UPDATE products p
+SET unit_price = m.med_price
+FROM median_price m
+WHERE p.category = m.category
+  AND (p.unit_price IS NULL OR p.unit_price <= 0);
+
+-- 4. Remove sales rows with invalid foreign keys
+DELETE FROM sales s
+WHERE NOT EXISTS (SELECT 1 FROM customers c WHERE c.customer_id = s.customer_id)
+   OR NOT EXISTS (SELECT 1 FROM products p WHERE p.product_id = s.product_id)
+   OR NOT EXISTS (SELECT 1 FROM stores st WHERE st.store_id = s.store_id)
+   OR NOT EXISTS (SELECT 1 FROM calendar cal WHERE cal.date = s.date);
+
+-- 5. Ensure discount is between 0 and 0.8
+UPDATE sales
+SET discount = CASE
+                 WHEN discount < 0   THEN 0
+                 WHEN discount > 0.8 THEN 0.8
+                 ELSE discount
+               END;
+```
+
+> Note: You may need to adjust functions like `INITCAP` or `PERCENTILE_CONT` depending on your database (e.g., MySQL vs PostgreSQL).
+
+---
+
+## SQL: Analysis & Business Questions
+
+The core business logic, inspired by typical sales‑analytics questions in portfolio projects.
+
+### 1. Top 10 Products by Revenue and Quantity
+
+```sql
+WITH sales_enriched AS (
+    SELECT s.sale_id,
+           s.product_id,
+           s.quantity,
+           s.discount,
+           (s.quantity * p.unit_price * (1 - s.discount)) AS revenue
+    FROM sales s
+    JOIN products p ON s.product_id = p.product_id
+)
+SELECT p.product_id,
+       p.product_name,
+       p.category,
+       SUM(se.quantity)          AS total_quantity,
+       ROUND(SUM(se.revenue), 2) AS total_revenue
+FROM sales_enriched se
+JOIN products p ON se.product_id = p.product_id
+GROUP BY p.product_id, p.product_name, p.category
+ORDER BY total_revenue DESC, total_quantity DESC
+LIMIT 10;
+```
+
+**What it answers:**  
+- Which products generate the most revenue?  
+- Which products have the highest volume sold?  
+This is useful for merchandising and inventory decisions.
+
+---
+
+### 2. Average Order Value per Customer
+
+```sql
+WITH sales_with_revenue AS (
+    SELECT s.sale_id,
+           s.customer_id,
+           (s.quantity * p.unit_price * (1 - s.discount)) AS revenue
+    FROM sales s
+    JOIN products p ON s.product_id = p.product_id
+)
+SELECT c.customer_id,
+       c.name,
+       ROUND(SUM(swr.revenue) / COUNT(DISTINCT swr.sale_id), 2) AS avg_order_value
+FROM sales_with_revenue swr
+JOIN customers c ON c.customer_id = swr.customer_id
+GROUP BY c.customer_id, c.name
+ORDER BY avg_order_value DESC;
+```
+
+**What it answers:**  
+- How much does each customer spend on average per order?  
+- Who are the highest value customers?
+
+This is a common metric for customer segmentation and marketing.
+---
+
+### 3. Effect of Discount on Quantity Sold
+
+```sql
+WITH sales_buckets AS (
+    SELECT CASE
+             WHEN discount = 0 THEN '0%'
+             WHEN discount > 0 AND discount <= 0.05 THEN '0-5%'
+             WHEN discount > 0.05 AND discount <= 0.10 THEN '5-10%'
+             WHEN discount > 0.10 AND discount <= 0.20 THEN '10-20%'
+             WHEN discount > 0.20 AND discount <= 0.30 THEN '20-30%'
+             ELSE '>30%'
+           END AS discount_bucket,
+           quantity
+    FROM sales
+)
+SELECT discount_bucket,
+       COUNT(*)                AS num_sales,
+       ROUND(AVG(quantity), 2) AS avg_quantity_per_sale
+FROM sales_buckets
+GROUP BY discount_bucket
+ORDER BY discount_bucket;
+```
+
+**What it answers:**  
+- As discounts increase, does average quantity per sale also increase?  
+- Which discount range drives the highest volume?
+
+This gives a first indication of discount effectiveness without building a full statistical model.[web:27][web:34][web:35]
+
+---
+
+## What I Learned / Skills Demonstrated
+
+- Designing and implementing a **star schema** for sales analytics.  
+- Generating and loading **synthetic data** for practice.  
+- Using SQL for:
+  - Data cleaning (standardization, validation, handling invalid values).  
+  - Exploratory analysis (aggregations, grouping, joins).  
+  - Business-focused queries (top products, customer spend, discount analysis).  
+- Structuring and documenting a SQL project on GitHub in a clear and professional way.
+
+
